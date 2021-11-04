@@ -8,11 +8,15 @@ until ip link show tun0 2>&1 | grep -qv "does not exist"; do
     sleep 1
 done
 
-addr_eth=$(ip a show dev eth0 | grep inet | cut -d " " -f 6 | cut -d "/" -f 1)
-addr_tun=$(ip a show dev tun0 | grep inet | cut -d " " -f 6 | cut -d "/" -f 1)
-sed -i \
-    -e "/Listen/c Listen $addr_eth" \
-    -e "/Bind/c Bind $addr_tun" \
-    /data/tinyproxy.conf
+cp -fp /data/tinyproxy.conf /tmp/tinyproxy.conf
 
-tinyproxy -d -c /data/tinyproxy.conf
+ETHS=$(ip -brief link show type veth | cut -d'@' -f1)
+for eth in $ETHS; do
+    addr_eth=$(ip a show dev "$eth" | grep inet | cut -d " " -f 6 | cut -d "/" -f 1)
+    echo "Listen ${addr_eth}" >> /tmp/tinyproxy.conf
+done
+
+addr_tun=$(ip a show dev tun0 | grep inet | cut -d " " -f 6 | cut -d "/" -f 1)
+echo "Bind ${addr_tun}" >> /tmp/tinyproxy.conf
+
+tinyproxy -d -c /tmp/tinyproxy.conf
